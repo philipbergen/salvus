@@ -13,6 +13,7 @@ def get_yubi_otp():
 
 def put(port, *args):
     import socket
+    from time import sleep
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect(('localhost', port))
     pkg = []
@@ -27,6 +28,8 @@ def put(port, *args):
         if not data:
             break
         buf.append(data)
+    s.shutdown(1)
     s.close()
+    sleep(0.25)
     return unicode(''.join(buf), 'utf8').split('\n')
     

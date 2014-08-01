@@ -3,11 +3,12 @@ __doc__ = open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'README.
 
 def main(argv):
     import docopt
-    opts = docopt.docopt(__doc__.replace('::\n', ':'), argv)
+    opts = docopt.docopt(__doc__.replace('::', ':').replace(':\n\n', ':\n'), argv)
     for opt in ('-p', '-e'):
         if opt in opts:
             opts[opt] = int(opts[opt])
 
+    from daemonize import Daemonize
     from getpass import getpass
     from . import serve, put, get_yubi_otp
     auth = None
@@ -16,12 +17,21 @@ def main(argv):
         if not opts['noauth']:
             auth = get_yubi_otp()
         print "Serving on", opts['-p'], "Expiry:", opts['-e']
-        serve(auth=auth, port=opts['-p'], expiry=opts['-e'])
+        def do_serve(auth=auth, port=opts['-p'], expiry=opts['-e']):
+            serve(auth=auth, port=port, expiry=expiry)
+        if opts['daemon']:
+            daemon = Daemonize(app="Salvus", pid="/tmp/salvus.pid", action=do_serve)
+            daemon.start()
+        else:
+            do_serve()
     elif opts['auth']:
         auth = get_yubi_otp()
         status, msg = put(opts['-p'], 'yubi', auth)
         if status == 'OK':
             print status, msg
+    elif opts['kill']:
+        auth = get_yubi_otp()
+        status, msg = put(opts['-p'], 'kill', auth)
     elif opts['set']:
         if '\n' in opts['<KEY>']:
             sys.exit('Key contains invalid characters')

@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name = "salvus",
-    version = "0.1.1",
+    version = "0.1.2",
     py_modules = ['salvus'],
     author = "philipbergen",
     author_email = "philipbergen at gmail com",
@@ -13,6 +13,7 @@ setup(
     install_requires=[
         "yubikey>=0.2",
         "docopt>=0.6",
+        "daemonize>=2.2",
     ],
 )
 

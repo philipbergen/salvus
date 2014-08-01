@@ -18,12 +18,13 @@ Usage::
     salvus get <KEY> [-a]
     salvus set <KEY> <ID> [-a]
     salvus list [-a]
+    salvus kill
 
 
 Options:
 
 -h, --help  This help
--p PORT     Port to listen to (always on localhost) [default: 5999]
+-p PORT     Port to listen to (always on localhost) [default: 59999]
 -e EXPIRY   Auth expiry in seconds, if 0 then ``get``, ``set``
              and ``list`` requires -a [default: 3600]
 -a          Add auth to each command, so requires yubikey OTP
@@ -38,8 +39,8 @@ All errors are printed on stderr and the exit code will be non-zero.
 If exit code is zero, the output will either be blank or in the case
 of ``get`` two lines, first the ID and second the secret.
 
-When yubikey OTP is needed, the prompt is output on stderr, so it can
-be separated from the desired output.
+When yubikey OTP (one time password) is needed, the prompt is output
+on stderr, so it can be separated from the desired output.
 
 --------------
 Examples
@@ -76,3 +77,17 @@ That will output ``Please touch the yubikey:`` on stderr, and the file
 userpass will contain two lines, the first is the username and the
 second line is password.
 
+Killing the server::
+
+    salvus kill
+
+This obviously requires yubikey OTP.
+
+------------------
+Obvious flaw
+------------------
+
+:TODO: If the server is killed and a logger is started in its place, there
+      will be no way for the user to determine that. Some phrase known only
+      to the user could be set during server start and returned for
+      verification upon presentation of yubikey OTP.
