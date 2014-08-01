@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: salvus
+Version: 0.1
+Summary: In-memory credential store with yubikey auth
+Home-page: UNKNOWN
+Author: philipbergen
+Author-email: philipbergen at gmail com
+License: MIT
+Description: UNKNOWN
+Keywords: yubikey auth
+Platform: UNKNOWN

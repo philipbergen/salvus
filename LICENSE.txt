@@ -1,0 +1,3 @@
+Copyright (c) 2014- Philip Bergen, all rights reserved.
+
+This software is release under the MIT license.
