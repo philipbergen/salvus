@@ -4,28 +4,75 @@ SALVUS
 
 In-memory credential store with yubikey authorization.
 
-Stores a set of ID and VALUE for each KEY. Usually ID is the
-username and VALUE is the password.
+Stores a set of ID and VALUE for each KEY. Usually ID is the username
+and VALUE is the password. Neither field may contain newlines.
 
-Neither field may contain newlines.
-
-KEY and ID may not contain colon (:).
+-----------------------
+Command line interface
+-----------------------
 
 Usage::
+
     salvus serve [daemon] [noauth] [-p PORT] [-e EXPIRY]
     salvus auth [-p PORT]
     salvus get <KEY> [-a]
-    salvus set <KEY> <ID> <VALUE> [-a]
+    salvus set <KEY> <ID> [-a]
     salvus list [-a]
 
+
 Options:
--h --help  This help
--p PORT    Port to listen to (always on localhost) [default: 5999]
--e EXPIRY  Auth expiry in seconds, if 0 then get, set and list requires -a [default: 3600]
--a         Add auth to each command, so requires yubikey OTP
+
+-h, --help  This help
+-p PORT     Port to listen to (always on localhost) [default: 5999]
+-e EXPIRY   Auth expiry in seconds, if 0 then ``get``, ``set``
+             and ``list`` requires -a [default: 3600]
+-a          Add auth to each command, so requires yubikey OTP
 
 
+------------------------
+Interpreting the output
+------------------------
 
-Server:
+All errors are printed on stderr and the exit code will be non-zero.
 
-When serving
+If exit code is zero, the output will either be blank or in the case
+of ``get`` two lines, first the ID and second the secret.
+
+When yubikey OTP is needed, the prompt is output on stderr, so it can
+be separated from the desired output.
+
+--------------
+Examples
+--------------
+
+Starting the server::
+
+    salvus server
+
+Touch the yubikey and the server starts on the default port.
+
+Setting a credential::
+
+    salvus set github philipbergen
+
+You will be prompted on stdout to enter the secret, press enter when
+you are done.
+
+Getting a credential::
+
+    salvus get github
+
+First line in the output on stdout is the ID (username) and the second
+is the secret (password).
+
+If you have set up zero expiry (auth on each request), then you need
+to add ``-a`` to each call to ``get``, ``set`` or ``list``. In the
+case of ``get``, you can separate prompts from results easily, since
+results are the only thing on stdout::
+
+    salvus get github -a > userpass
+
+That will output ``Please touch the yubikey:`` on stderr, and the file
+userpass will contain two lines, the first is the username and the
+second line is password.
+

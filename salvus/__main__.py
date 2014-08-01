@@ -3,11 +3,12 @@ __doc__ = open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'README.
 
 def main(argv):
     import docopt
-    opts = docopt.docopt(__doc__, argv)
+    opts = docopt.docopt(__doc__.replace('::\n', ':'), argv)
     for opt in ('-p', '-e'):
         if opt in opts:
             opts[opt] = int(opts[opt])
 
+    from getpass import getpass
     from . import serve, put, get_yubi_otp
     auth = None
     status = None
@@ -26,11 +27,12 @@ def main(argv):
             sys.exit('Key contains invalid characters')
         if '\n' in opts['<ID>']:
             sys.exit('ID contains invalid characters')
-        if '\n' in opts['<VALUE>']:
-            sys.exit('Value contains invalid characters')
+        secret = getpass('Please enter secret for %s/%s: ' % (opts['<KEY>'], opts['<ID>']))
+        if '\n' in secret:
+            sys.exit('Secret contains invalid characters')
         if opts.get('-a', None):
             auth = get_yubi_otp()
-        status, msg = put(opts['-p'], 'set', opts['<KEY>'], opts['<ID>'], opts['<VALUE>'], auth)
+        status, msg = put(opts['-p'], 'set', opts['<KEY>'], opts['<ID>'], secret, auth)
     elif opts['get']:
         if opts.get('-a', None):
             auth = get_yubi_otp()
