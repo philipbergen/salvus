@@ -19,6 +19,8 @@ Usage::
     salvus set <KEY> <ID> [-a]
     salvus list [-a]
     salvus kill
+    salvus ping
+    salvus -h
 
 
 Options:
@@ -82,6 +84,14 @@ Killing the server::
     salvus kill
 
 This obviously requires yubikey OTP.
+
+Pinging the server::
+
+    salvus ping
+
+Never needs yubikey OTP. The only relevant output is the exit code,
+zero for server running, non-zero (and a reason on stderr) for connect
+failed.
 
 ------------------
 Obvious flaw

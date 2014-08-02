@@ -22,6 +22,8 @@ def serve(port, expiry, auth=None, yubi_id=17627, log=(sys.stdout.write, 'SALVUS
                     ch = chs.next()
                 tmp.append(ch)
         except StopIteration:
+            if tmp and res is None:
+                res = []
             if res is not None:
                 res.append(''.join(tmp))
         return res
@@ -62,6 +64,8 @@ def serve(port, expiry, auth=None, yubi_id=17627, log=(sys.stdout.write, 'SALVUS
                     msg.append(ch)
                 msg = split(msg)
                 log(prefix + "FROM %r: %s" % (addr, msg) + postfix)
+                if msg is None:
+                    continue
                 if msg[0] == 'yubi':
                     ver = verify(msg[1], owner is None)
                     if ver:
@@ -81,6 +85,9 @@ def serve(port, expiry, auth=None, yubi_id=17627, log=(sys.stdout.write, 'SALVUS
                     if ver is None:
                         reply = 'OK\nShutting down'
                         raise Shutdown()
+                elif msg[0] == 'ping':
+                    log(prefix + "Ping" + postfix)
+                    reply="OK\nPong"
                 else:
                     auth = None
                     ver = None

@@ -1,5 +1,5 @@
 import os
-__doc__ = open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'README.rst')).read()
+__doc__ = open(os.path.join(os.path.dirname(__file__), 'README.rst')).read()
 
 def main(argv):
     import docopt
@@ -10,6 +10,7 @@ def main(argv):
 
     from daemonize import Daemonize
     from getpass import getpass
+    from socket import error
     from . import serve, put, get_yubi_otp
     auth = None
     status = None
@@ -52,6 +53,21 @@ def main(argv):
             print res[2]
         else:
             status, msg = res
+    elif opts['list']:
+        if opts.get('-a', None):
+            auth = get_yubi_otp()
+        res = put(opts['-p'], 'list', auth)
+        if res[0] == 'OK':
+            for key in res[1:]:
+                print key
+        else:
+            status, msg = res
+    elif opts['ping']:
+        try:
+            status, msg = put(opts['-p'], 'ping')
+        except error as e:
+            status = 'ERROR'
+            msg = str(e)
 
     if status == 'ERROR':
         sys.exit(msg)

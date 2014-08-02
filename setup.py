@@ -2,8 +2,11 @@ from setuptools import setup
 
 setup(
     name = "salvus",
-    version = "0.1.4",
+    version = "0.1.8",
     packages = ['salvus'],
+    package_data = {
+        'salvus': ['*.rst'],
+    },
     author = "philipbergen",
     author_email = "philipbergen at gmail com",
     description = "In-memory credential store with yubikey auth",
