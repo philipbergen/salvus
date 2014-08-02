@@ -59,7 +59,8 @@ def main(argv):
         res = put(opts['-p'], 'list', auth)
         if res[0] == 'OK':
             for key in res[1:]:
-                print key
+                if key:
+                    print key
         else:
             status, msg = res
     elif opts['ping']:
