@@ -1,9 +1,29 @@
 import sys
 
-def serve(port, expiry, auth=None, yubi_id=17627, log=(sys.stdout.write, 'SALVUS SERVE: ', '\n')):
+def serve(port, expiry, auth, recognition, yubi_id=17627, unsafe_log=False,
+          log=(sys.stdout.write, 'SALVUS SERVE: ', '\n')):
+    """
+    Starts a server on localhost, port :port:.
+
+    :param port: Any valid port number
+    :param expiry: Number of seconds a yubikey auth is valid before
+                   expiring. Set to zero to require OTP on each command.
+    :param auth: An initial yubikey OTP for establishing the yubikey owner.
+    :param recognition: Personal secret phrase that establishes to you that
+                        the server is the one you started.
+    :param yubi_id: My (philipbergen) yubikey api id. Not sure if it matters
+                    who's number is being used. Getting your own is easy, go
+                    to yubikey.com.
+    :param unsafe_log: Log everything, including sensitive information.
+    :param log: To redirect log output somewhere else, a tuple of a method
+                to call, a prefix and a postfix.
+    """
+
     import yubikey
     import socket
     import time
+    from os import getpid
+    from . import sock_readline
 
     def split(chs):
         res = None
@@ -28,17 +48,28 @@ def serve(port, expiry, auth=None, yubi_id=17627, log=(sys.stdout.write, 'SALVUS
                 res.append(''.join(tmp))
         return res
 
-    def verify(key, skip_owner=False):
-        log(prefix + 'verify ' + str(skip_owner) + ': ' + key + postfix)
+    def verify(key):
+        log(prefix + 'VERIFY ' + censor(key[:-8]) + key[-8:] + postfix)
         if not yubikey.verify(key, yubi_id):
             return 'Failed validation'
-        if not skip_owner and owner != key[:12]:
+        if owner != key[:12]:
             return 'Owner mismatch'
         return None
 
     class Shutdown(Exception):
         "Used internally to signal shutdown"
-    
+
+    class Authorize(Exception):
+        "Used to signal required authorization"
+
+    class Fail(Exception):
+        "Used to signal failed command"
+
+    def censor(s, unsafe_log=unsafe_log):
+        if unsafe_log:
+            return s
+        return ''
+
     prefix = log[1]
     postfix = log[2]
     log = log[0]
@@ -48,7 +79,8 @@ def serve(port, expiry, auth=None, yubi_id=17627, log=(sys.stdout.write, 'SALVUS
     sock.bind(('localhost', port))
     sock.listen(32)
     credentials = {}
-    owner = None if auth is None else auth[:12]
+    owner = auth[:12]
+    recognition = recognition.replace('\n', ' ')
     timeout = 0 if auth is None or not expiry else (time.time() + expiry)
     try:
         while True:
@@ -56,75 +88,58 @@ def serve(port, expiry, auth=None, yubi_id=17627, log=(sys.stdout.write, 'SALVUS
                 conn = None
                 reply = None
                 conn, addr = sock.accept()
-                msg = []
-                while True:
-                    ch = conn.recv(1)
-                    if ch == '\n' or not ch:
-                        break
-                    msg.append(ch)
-                msg = split(msg)
-                log(prefix + "FROM %r: %s" % (addr, msg) + postfix)
+                msg = split(sock_readline(conn))
+                log(prefix + "FROM %r: %s (%d) %s" % (addr, msg[0], len(msg), censor(msg[1:])) + postfix)
                 if msg is None:
                     continue
-                if msg[0] == 'yubi':
-                    ver = verify(msg[1], owner is None)
-                    if ver:
-                        reply = 'ERROR\n' + ver
-                    else:
-                        if not owner:
-                            owner = msg[1][:12]
-                            reply = 'OK\nOwner accepted'
-                        else:
-                            reply = 'OK\nOwner match'
-                        if expiry:
-                            timeout = time.time() + expiry
-                elif msg[0] == 'kill':
-                    log(prefix + "Shutdown" + postfix)
+                auth = None
+                if (len(msg) == 2 and msg[0] in ('auth', 'kill', 'set', 'list')) \
+                    or (len(msg) == 3 and msg[0] == 'get'):
                     auth = msg.pop()
-                    ver = verify(auth, owner is None)
-                    if ver is None:
-                        reply = 'OK\nShutting down'
-                        raise Shutdown()
-                elif msg[0] == 'ping':
-                    log(prefix + "Ping" + postfix)
-                    reply="OK\nPong"
-                else:
-                    auth = None
-                    ver = None
-                    if not owner:
-                        reply = 'AUTH\nNot initialized'
-                    elif msg[0] == 'get':
-                        if len(msg) == 3:
-                            auth = msg.pop()
-                        key = msg[1]
-                        if key not in credentials:
-                            reply = 'ERROR\n' + key + ' unknown'
-                        else:
-                            reply = 'OK\n%s\n%s' % credentials[key]
-                    elif msg[0] == 'set':
-                        if len(msg) == 5:
-                            auth = msg.pop()
-                            ver = verify(auth)
-                        if ver is None:
-                            _, key, user, pw = msg
-                            credentials[key] = (user, pw)
-                            reply = 'OK\n' + key + ' set'
-                    elif msg[0] == 'list':
-                        if len(msg) == 2:
-                            auth = msg[-1]
-                        reply = 'OK\n' + '\n'.join(credentials.keys())
-                    else:
-                        reply = 'ERROR\nUnknown command: ' + msg
-                    if auth is not None:
-                        if msg[0] not in ('set', ):
-                            ver = verify(auth)
-                        if ver:
-                            reply = 'ERROR\n' + ver
+                    ver = verify(auth)
+                    if ver:
+                        raise Authorize(ver)
+                    if expiry:
+                        timeout = time.time() + expiry
+                    log(prefix + "AUTH %s -> %.1f%s" % (msg[0], timeout, postfix))
+                if not auth:
+                    if msg[0] in ('auth', 'kill'):
+                        raise Fail('Auth required')
+                    if msg[0] != 'ping' and time.time() > timeout:
+                        raise Authorize('Auth expired')
 
-                    if auth is None and reply.startswith('OK\n') and time.time() > timeout:
-                        reply = 'AUTH\nExpired'
+                if msg[0] == 'ping':
+                    reply = "OK\nPong (PID %d)" % getpid()
+                elif msg[0] == 'list':
+                    reply = 'OK\n' + '\n'.join(credentials.keys())
+                elif msg[0] == 'auth':
+                    reply = 'OK\nAuthorized'
+                elif msg[0] == 'kill':
+                    raise Shutdown()
+                elif msg[0] == 'get':
+                    key = msg[1]
+                    if key not in credentials:
+                        raise Fail('Key unknown')
+                    reply = 'OK\n%s\n%s' % credentials[key]
+                elif msg[0] == 'set':
+                    reco_out = '%s (PID %d)' % (recognition, getpid())
+                    log(prefix + "SECRET" + postfix)
+                    conn.sendall('SECRET\n%s\n' % (reco_out, ))
+                    _, key, user, pw, reco_in = split(sock_readline(conn))
+                    if reco_in != reco_out:
+                        raise Fail('Invalid recognition')
+                    credentials[key] = (user, pw)
+                    reply = 'OK\nCredentials %s/%s set' % (key, user)
+
+            except Authorize as e:
+                reply = 'AUTH\n' + str(e)
+
+            except Fail as e:
+                reply = 'ERROR\n' + str(e)
+
             except socket.error as e:
                 log(prefix + "ERROR: %s" % (e,) + postfix)
+                reply = 'ERROR\n' + str(e)
 
             except (IndexError, ValueError) as e:
                 log(prefix + "ERROR: %s" % (e, ) + postfix)
@@ -133,7 +148,8 @@ def serve(port, expiry, auth=None, yubi_id=17627, log=(sys.stdout.write, 'SALVUS
             finally:
                 if conn:
                     if reply:
-                        log(prefix + "REPLY:" + repr(reply) + postfix)
+                        rep = (reply + '\n\n').split('\n', 2)
+                        log(prefix + "REPLY: %s\\n%s\\n%s%s" %(rep[0], rep[1], censor(rep[2]), postfix))
                         conn.sendall(reply)
                     conn.close()
 

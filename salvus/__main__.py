@@ -11,15 +11,15 @@ def main(argv):
     from daemonize import Daemonize
     from getpass import getpass
     from socket import error
-    from . import serve, put, get_yubi_otp
+    from . import serve, put, get_yubi_otp, sock_readline, sock_send, sock_close, sock_communicate, get_socket
     auth = None
     status = None
     if opts['serve']:
-        if not opts['noauth']:
-            auth = get_yubi_otp()
+        recognition = getpass('Please enter server recognition passphrase (NOT YUBIKEY):')
+        auth = get_yubi_otp()
         print "Serving on", opts['-p'], "Expiry:", opts['-e']
-        def do_serve(auth=auth, port=opts['-p'], expiry=opts['-e']):
-            serve(auth=auth, port=port, expiry=expiry)
+        def do_serve(port=opts['-p'], expiry=opts['-e'], auth=auth, recognition=recognition):
+            serve(port, expiry, auth, recognition)
         if opts['daemon']:
             daemon = Daemonize(app="Salvus", pid="/tmp/salvus.pid", action=do_serve)
             daemon.start()
@@ -27,23 +27,39 @@ def main(argv):
             do_serve()
     elif opts['auth']:
         auth = get_yubi_otp()
-        status, msg = put(opts['-p'], 'yubi', auth)
+        status, msg = put(opts['-p'], 'auth', auth)
         if status == 'OK':
             print status, msg
     elif opts['kill']:
         auth = get_yubi_otp()
         status, msg = put(opts['-p'], 'kill', auth)
+        if status == 'OK':
+            print status, msg
     elif opts['set']:
         if '\n' in opts['<KEY>']:
             sys.exit('Key contains invalid characters')
         if '\n' in opts['<ID>']:
             sys.exit('ID contains invalid characters')
-        secret = getpass('Please enter secret for %s/%s: ' % (opts['<KEY>'], opts['<ID>']))
-        if '\n' in secret:
-            sys.exit('Secret contains invalid characters')
         if opts.get('-a', None):
             auth = get_yubi_otp()
-        status, msg = put(opts['-p'], 'set', opts['<KEY>'], opts['<ID>'], secret, auth)
+        try:
+            sock = None
+            sock = get_socket(opts['-p'])
+            sock_send(sock, 'set', auth)
+            status, msg = sock_readline(sock), sock_readline(sock)
+            if status == 'SECRET':
+                recognition = msg
+                sys.stderr.write('Do you trust %s? [yn] ' % (recognition, ))
+                reply = getpass('')
+                if reply in ('y', 'Y', 'yes'):
+                    secret = getpass('Please enter secret for %s/%s: ' % (opts['<KEY>'], opts['<ID>']))
+                    if '\n' in secret:
+                        sys.exit('Secret contains invalid characters')
+                    status, msg = sock_communicate(sock, 'ignored', opts['<KEY>'], opts['<ID>'], secret, recognition)
+                else:
+                    sys.exit('Server is compromised, stop everything you are doing and kill the process')
+        finally:
+            sock_close(sock)
     elif opts['get']:
         if opts.get('-a', None):
             auth = get_yubi_otp()

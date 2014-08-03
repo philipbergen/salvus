@@ -13,7 +13,7 @@ Command line interface
 
 Usage::
 
-    salvus serve [daemon] [noauth] [-p PORT] [-e EXPIRY]
+    salvus serve [daemon] [-p PORT] [-e EXPIRY]
     salvus auth [-p PORT]
     salvus get <KEY> [-a]
     salvus set <KEY> <ID> [-a]
@@ -51,6 +51,9 @@ Examples
 Starting the server::
 
     salvus server
+
+Enter a recognition phrase used to identify that this is the server
+you trust.
 
 Touch the yubikey and the server starts on the default port.
 
@@ -92,12 +95,3 @@ Pinging the server::
 Never needs yubikey OTP. The only relevant output is the exit code,
 zero for server running, non-zero (and a reason on stderr) for connect
 failed.
-
-------------------
-Obvious flaw
-------------------
-
-:TODO: If the server is killed and a logger is started in its place, there
-      will be no way for the user to determine that. Some phrase known only
-      to the user could be set during server start and returned for
-      verification upon presentation of yubikey OTP.
