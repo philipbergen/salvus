@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name = "salvus",
-    version = "0.1.9",
+    version = "0.1.10",
     packages = ['salvus'],
     package_data = {
         'salvus': ['*.rst'],
