@@ -131,6 +131,9 @@ def serve(port, expiry, auth, recognition, yubi_id=17627, unsafe_log=False,
                     credentials[key] = (user, pw)
                     reply = 'OK\nCredentials %s/%s set' % (key, user)
 
+            except TypeError:
+                continue
+
             except Authorize as e:
                 reply = 'AUTH\n' + str(e)
 

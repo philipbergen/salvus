@@ -1,4 +1,6 @@
-
+"""
+Guide on pypi setup and submit: http://peterdowns.com/posts/first-time-with-pypi.html
+"""
 __all__ = ['serve']
 
 from .server import serve
