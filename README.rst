@@ -15,11 +15,11 @@ Usage::
 
     salvus serve [daemon] [-p PORT] [-e EXPIRY]
     salvus auth [-p PORT]
-    salvus get <KEY> [-a]
-    salvus set <KEY> <ID> [-a]
-    salvus list [-a]
-    salvus kill
-    salvus ping
+    salvus get <KEY> [-a] [-p PORT]
+    salvus set <KEY> <ID> [-a] [-p PORT]
+    salvus list [-a] [-p PORT]
+    salvus kill [-p PORT]
+    salvus ping [-p PORT]
     salvus -h
 
 

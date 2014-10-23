@@ -115,6 +115,7 @@ def serve(port, expiry, auth, recognition, yubi_id=17627, unsafe_log=False,
                 elif msg[0] == 'auth':
                     reply = 'OK\nAuthorized'
                 elif msg[0] == 'kill':
+                    reply = 'OK\nAuthorized'
                     raise Shutdown()
                 elif msg[0] == 'get':
                     key = msg[1]
